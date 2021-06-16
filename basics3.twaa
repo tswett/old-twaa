@@ -1,0 +1,109 @@
+-- Again, again!
+
+declare {
+    sort Bool;
+    true: Bool;
+    false: Bool;
+}
+
+not(x: Bool): Bool where {
+    not(true) = false;
+    not(false) = true;
+}
+
+[cancel not(not('x: Bool))]: [not(not(x)) = x] where {
+    [cancel not(not(true))] = not([not(true)]) .. [not(false)];
+    [cancel not(not(false))] = not([not(false)]) .. [not(true)];
+}
+
+and(x: Bool, y: Bool): Bool where {
+    [leftid and(true, 'y: Bool)]      and(true, y) = y;
+    [leftabs and(false, 'y: Bool)]    and(false, y) = false;
+}
+
+[rightid and('x: Bool, true)]: [and(x, true) = x] where {
+    [rightid and(true, true)] = [leftid and(true, true)];
+    [rightid and(false, true)] = [leftabs and(false, true)];
+}
+
+[rightabs and('x: Bool, false)]: [and(x, false) = x] where {
+    [rightabs and(true, false)] = [leftid and(true, false)];
+    [rightabs and(false, false)] = [leftabs and(false, false)];
+}
+
+[comm and('x: Bool, 'y: Bool)]: [and(x, y) = and(y, x)] where {
+    [comm and(true, 'y: Bool)] = [leftid and(true, y)] .. ^[rightid and(y, true)];
+    [comm and(false, 'y: Bool)] = [leftabs and(false, y)] .. ^[rightabs and(y, false)];
+}
+
+--------------------------------------------------------------------------------
+
+declare {
+    sort Nat;
+    zero: Nat;
+    plus_one(n: Nat): Nat;
+}
+
+plus(x: Nat, y: Nat): Nat where {
+    [leftid plus(zero, 'y: Nat)]                    plus(zero, y) = y;
+    [leftpull plus(plus_one('x: Nat), 'y: Nat)]     plus(plus_one(x), y) = plus_one(plus(x, y));
+}
+
+[rightid plus('x: Nat, zero)]: [plus(x, zero) = x] where {
+    [rightid plus(zero, zero)] = [leftid plus(zero, zero)];
+    [rightid plus(plus_one('x: Nat), zero)] =     -- plus(plus_one(x), zero)
+        [leftpull plus(plus_one(x), zero)] ..     -- plus_one(plus(x, zero))
+        plus_one([rightid plus(x, zero)]);        -- plus_one(x)
+}
+
+[rightpull plus('x: Nat, plus_one('y: Nat))]: [plus(x, plus_one(y)) = plus_one(plus(x, y))] where {
+    [rightpull plus(zero, plus_one('y: Nat))] =     -- plus(zero, plus_one(y))
+        [leftid plus(zero, plus_one(y))] ..         -- plus_one(y)
+        plus_one(^[leftid plus(zero, y)]);          -- plus_one(plus(zero, y))
+
+    [rightpull plus(plus_one('x: Nat), plus_one('y; Nat))] =    -- plus(plus_one(x), plus_one(y))
+        [leftpull plus(plus_one(x), plus_one(y))] ..            -- plus_one(plus(x, plus_one(y)))
+        plus_one([rightpull plus(x, plus_one(y))]) ..           -- plus_one(plus_one(plus(x, y)))
+        plus_one(^[leftpull plus(plus_one(x), y)]);             -- plus_one(plus(plus_one(x), y))
+}
+
+[comm plus('x: Nat, 'y: Nat)]: [plus(x, y) = plus(y, x)] where {
+    [comm plus(zero, 'y: Nat)] = [leftid plus(zero, y)] .. ^[rightid plus(y, zero)];
+    
+    [comm plus(plus_one('x: Nat), 'y: Nat)] =     -- plus(plus_one(x), y)
+        [leftpull plus(plus_one(x), y)] ..        -- plus_one(plus(x, y))
+        plus_one([comm plus(x, y)]) ..            -- plus_one(plus(y, x))
+        ^[rightpull plus(y, plus_one(x))]         -- plus(y, plus_one(x))
+}
+
+[assoc plus(plus('x: Nat, 'y: Nat), 'z: Nat)]: [plus(plus(x, y), z) = plus(x, plus(y, z))] where {
+    [assoc plus(plus(zero, 'y: Nat), 'z: Nat)] =    -- plus(plus(zero, y), z)
+        plus([leftid plus(zero, y)], z) ..          -- plus(y, z)
+        ^[leftid plus(zero, plus(y, z))];           -- plus(zero, plus(y, z))
+
+    [assoc plus(plus(plus_one('x: Nat), 'y: Nat), 'z: Nat)] =     -- plus(plus(plus_one(x), y), z)
+        plus([leftpull plus(plus_one(x), y)], z) ..               -- plus(plus_one(plus(x, y)), z)
+        [leftpull plus(plus_one(plus(x, y)), z)] ..               -- plus_one(plus(plus(x, y), z))
+        plus_one([assoc plus(plus(x, y), z)]) ..                  -- plus_one(plus(x, plus(y, z)))
+        ^[leftpull plus(plus_one(x), plus(y, z))];                -- plus(plus_one(x), plus(y, z))
+}
+
+is_even(x: Nat): Bool where {
+    is_even(zero) = true;
+    is_even(plus_one(x)) = not(is_even(x));
+}
+
+[is_even(plus('x: Nat, itself))]: [is_even(plus(x, x)) = true] where {
+    [is_even(plus(zero, itself))] =               -- is_even(plus(zero, zero))
+        is_even([leftid plus(zero, zero)]) ..     -- is_even(zero)
+        [is_even(zero)]                           -- true
+
+    [is_even(plus(plus_one('x: Nat), itself))] =                  -- is_even(plus(plus_one(x), plus_one(x)))
+        is_even([leftpull plus(plus_one(x), plus_one(x))]) ..     -- is_even(plus_one(plus(x, plus_one(x)))
+        is_even(plus_one([rightpull plus(x, plus_one(x))])) ..    -- is_even(plus_one(plus_one(plus(x, x))))
+        [is_even(plus_one(plus_one(plus(x, x))))] ..              -- not(is_even(plus_one(plus(x, x))))
+        not([is_even(plus_one(plus(x, x)))]) ..                   -- not(not(is_even(plus(x, x))))
+        not(not([is_even(plus(x, itself))])) ..                   -- not(not(true))
+        not([not(true)]) ..                                       -- not(false)
+        [not(false)]                                              -- true
+}

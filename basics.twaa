@@ -1,0 +1,98 @@
+-- You can define enumerated data types like so:
+
+declare {
+    sort Bool;
+    true: Bool;
+    false: Bool;
+}
+
+-- Then you can define simple functions like so:
+
+not(p: Bool): Bool where {
+    [not_true]      not(true) = false;
+    [not_false]     not(false) = true;
+}
+
+-- Or an even simpler case:
+
+bool_id(p: Bool): Bool = p;
+
+-- You can use variables in the pattern and result like so:
+
+and(p: Bool, q: Bool): Bool where {
+    [and_true_q]      and(true, q) = q;
+    [and_false_q]     and(false, q) = false;
+}
+
+-- You can define algebraic data types, too:
+
+declare {
+    sort Nat;
+    zero: Nat;
+    plus_one(n: Nat): Nat;
+}
+
+-- You can define primitive recursive functions. Specifically, you can make a
+-- recursive call as long as your function has a particular parameter such that
+-- in all branches of your function, all recursive calls are "decreasing" in
+-- that parameter:
+
+is_even(n: Nat): Bool where {
+    [is_even_zero]        is_even(zero) = true;
+    [is_even_plus_one]    is_even(plus_one(p)) = not(is_even(p));
+}
+
+add(n: Nat, p: Nat): Nat where {
+    [add_n_zero]                add(n, zero) = n;
+    [add_n_p1_p__p1_add_n_p]    add(n, plus_one(q)) = plus_one(add(n, q));
+}
+
+-- How about equality proofs? I think we only need four rules for
+-- equality proofs:
+--
+-- * Any expression is equal to itself.
+-- * Given an equality with a free variable, that variable can be instantiated.
+-- * Equal expressions can be substituted anywhere.
+-- * If two functions can be given identical inductive definitions, then they
+--   are equal.
+
+-- If I think about it really hard, I might be able to figure out how to prove
+-- that addition is commutative.
+
+-- It'd be helpful to start by proving that add(zero, p) = p. The proof is by
+-- induction: add(zero, zero) = zero and
+-- add(zero, plus_one(q)) = plus_one(add(zero, q)) = plus_one(q). But how can
+-- this be written as "identical inductive definitions"? Let's start like this:
+
+[azl]     add_zero_left(p: Nat): Nat = add(zero, p);
+
+[azl_zero]        add_zero_left(zero) = add(zero, zero)     [azl]
+                                      = zero                [add_n_zero];
+
+[azl_plus_one]    add_zero_left(plus_one(q: Nat)) = add(zero, plus_one(q))        [azl]
+                                                  = plus_one(add(zero, q))        [add_n_p1_p__p1_add_n_p]
+                                                  = plus_one(add_zero_left(q))    [azl];
+
+-- Ah, now we're getting somewhere.
+
+[nat_id]    nat_id(n: Nat): Nat = n;
+
+[nat_id_zero]         nat_id(zero) = zero     [nat_id];
+
+[nat_id_plus_one]     nat_id(plus_one(n: Nat)) = plus_one(n)            [nat_id]
+                                               = plus_one(nat_id(n))    [nat_id];
+
+-- And now [azl_zero], [nat_id_plus_one], and so forth constitute identical
+-- inductive definitions of add_zero_left and nat_id. Not sure what the syntax
+-- for all that should be, though.
+
+-- I wonder...
+
+[add_zero_p](p: Nat): [add(zero, p) = p] where {
+    add(zero, zero) = zero    [add_n_zero];
+    
+    add(zero, plus_one(q)) = plus_one(add(zero, q))     [add_n_p1_p__p1_add_n_p]
+                           = plus_one(q)                [base];
+}
+
+-- Not a big fan.

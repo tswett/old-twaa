@@ -1,0 +1,107 @@
+-- Let's do that boolean stuff again:
+
+declare {
+    sort Bool;
+    true: Bool;
+    false: Bool;
+}
+
+-- By the way, let's say that equation names can contain spaces, commas and
+-- parentheses, and if you don't give an equation a name, it's automatically
+-- named after the left-hand side.
+
+not(x: Bool): Bool where {
+    not(true) = false; -- automatically named [not(true)]
+    not(false) = true; -- automatically named [not(false)]
+}
+
+-- Equations have types, just like anything else. Thus, in addition to having
+
+-- not(x: Bool): Bool
+
+-- we also have
+
+-- [not(true)]: [not(true) = false]
+-- [not(false)]: [not(false) = true]
+
+-- We can define new equations like so:
+
+[not(not(true))]: [not(not(true)) = true] = not([not(true)]) .. [not(false)]
+
+-- The expression not([not(true)]) creates a new equation using the substitution
+-- principle, and the .. operator composes two equations. We'll let
+-- the ^ operator denote reversing an equation, and I think an ordinary
+-- (value-level) expression in an equation context will denote reflexivity.
+-- In fact, if an expression looks like a value-level expression but contains
+-- multiple equations, let's say the result is what you get by applying the
+-- substitution principle to all of them.
+
+-- Equations can be defined by cases, of course:
+
+[not(not)](x: Bool): [not(not(x)) = x] where {
+    [not(not)](true) = not([not(true)]) .. [not(false)];
+    [not(not)](false) = not([not(false)]) .. [not(true)];
+}
+
+-- Now let's define some more stuff and prove some basic theorems.
+
+and(x: Bool, y: Bool): Bool where {
+    [and(true, )]     and(true, y) = y;
+    [and(false, )]    and(false, y) = false;
+}
+
+[and(, true)](x: Bool): [and(x, true) = x] where {
+    [and(, true)](true) = [and(true, )](true);
+    [and(, true)](false) = [and(false, )](true);
+}
+
+[and(, false)](x: Bool): [and(x, false) = false] where {
+    [and(, false)](true) = [and(true, )](false);
+    [and(, false)](false) = [and(false, )](false);
+}
+
+[and() comm](x: Bool, y: Bool): [and(x, y) = and(y, x)] where {
+    [and() comm](true, y) = [and(true, )](y) ..     -- and(true, y) = y
+                            ^[and(, true)](y)       -- y = and(y, true)
+
+    [and() comm](false, y) = [and(false, )](y) ..     -- and(false, y) = false
+                             ^[and(, false)](y)       -- false = and(y, false)
+}
+
+-- Okay, enough of booleans for now. Next, natural numbers:
+
+declare {
+    sort Nat;
+    zero: Nat;
+    plus_one(n: Nat): Nat;
+}
+
+add(x: Nat, y: Nat): Nat where {
+    [add(, zero)]         add(x, zero) = x;
+
+    -- In the below line, how is the compiler supposed to know what the argument
+    -- order for [add(, plus_one)] is?
+    [add(, plus_one)]     add(x, plus_one(y)) = plus_one(add(x, y));
+}
+
+[add(zero, )](y: Nat): [add(zero, y) = y] where {
+    [add(zero, )](zero) = [add(, zero)](zero);
+    
+    [add(zero, )](plus_one(z)) =          -- add(zero, plus_one(z)) = plus_one(z) because...
+        [add(, plus_one)](zero, z) ..     -- add(zero, plus_one(z)) = plus_one(add(zero, z))
+        plus_one([add(zero, )](z));       -- plus_one(add(zero, z)) = plus_one(z)
+}
+
+[add(plus_one, )](x, y: Nat): [add(plus_one(x), y) = plus_one(add(x, y))] where {
+    [add(plus_one, )](x, zero) =          -- add(plus_one(x), zero) = plus_one(add(x, zero)) because...
+        [add(, zero)](plus_one(x)) ..     -- add(plus_one(x), zero) = plus_one(x)
+        plus_one(^[add(, zero)](x));      -- plus_one(x) = plus_one(add(x, zero))
+    
+    [add(plus_one, )](x, plus_one(y)) =         -- add(plus_one(x), plus_one(y)) = plus_one(add(x, plus_one(y))) because...
+        [add(, plus_one)](plus_one(x), y) ..    -- add(plus_one(x), plus_one(y)) = plus_one(add(plus_one(x), y))
+        plus_one([add(plus_one, )](x, y)) ..    -- plus_one(add(plus_one(x), y)) = plus_one(plus_one(add(x, y)))
+        plus_one(^[add(, plus_one)](x, y));     -- plus_one(plus_one(add(x, y))) = plus_one(add(x, plus_one(y)))
+}
+
+-- You know what, I'd like to make the notation for equation names even more
+-- complex, in the hopes of making it even easier to use.
